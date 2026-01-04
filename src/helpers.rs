@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
-use std::process::Command;
 use serde::{Deserialize, Serialize};
+use std::process::Command;
 
 pub fn is_process_running(pid: u32) -> bool {
     Command::new("kill")
@@ -10,24 +10,22 @@ pub fn is_process_running(pid: u32) -> bool {
         .unwrap_or(false)
 }
 
-
-
 pub fn wav_to_samples(wav_data: &[u8]) -> Result<Vec<f32>> {
     // Skip WAV header (44 bytes) and convert to f32 samples
     // This assumes 16-bit PCM mono audio at 16kHz
-    
+
     if wav_data.len() < 44 {
         return Err(anyhow::anyhow!("Invalid WAV file: too short"));
     }
-    
+
     let raw_samples = &wav_data[44..];
     let mut samples = Vec::with_capacity(raw_samples.len() / 2);
-    
+
     for chunk in raw_samples.chunks_exact(2) {
         let sample = i16::from_le_bytes([chunk[0], chunk[1]]);
         samples.push(sample as f32 / i16::MAX as f32);
     }
-    
+
     Ok(samples)
 }
 
@@ -67,10 +65,10 @@ pub fn read_tray_state() -> Option<TrayState> {
 pub fn write_tray_state(state: &TrayState) -> Result<()> {
     let state_file = get_state_file();
     let runtime_dir = get_runtime_dir();
-    
+
     // Ensure runtime dir exists
     std::fs::create_dir_all(&runtime_dir).ok();
-    
+
     let json = serde_json::to_string_pretty(state)?;
     std::fs::write(state_file, json)?;
     Ok(())
@@ -79,21 +77,27 @@ pub fn write_tray_state(state: &TrayState) -> Result<()> {
 /// Resolves the model to use with priority:
 /// 1. Command-line argument
 /// 2. Tray state file
-/// 3. WA_WHISPER_MODEL env var
-/// 4. Default to "medium.en"
+/// 3. System config file (~/.config/whisp-away/config.json)
+/// 4. WA_WHISPER_MODEL env var
+/// 5. Default to "base.en"
 pub fn resolve_model(arg: Option<String>) -> String {
     // Priority 1: Command-line argument
     if let Some(model) = arg {
         return model;
     }
-    
+
     // Priority 2: Tray state
     if let Some(state) = read_tray_state() {
         return state.model;
     }
-    
-    // Priority 3: Environment variable
-    // Priority 4: Default
+
+    // Priority 3: System config file
+    if let Some(config) = crate::config::read_config() {
+        return config.default_model;
+    }
+
+    // Priority 4: Environment variable
+    // Priority 5: Default
     std::env::var("WA_WHISPER_MODEL").unwrap_or_else(|_| "base.en".to_string())
 }
 
@@ -105,8 +109,9 @@ pub fn get_acceleration_type() -> String {
 /// Resolves whether to use clipboard with priority:
 /// 1. Command-line argument
 /// 2. Tray state file
-/// 3. WA_USE_CLIPBOARD env var
-/// 4. Default to false
+/// 3. System config file (~/.config/whisp-away/config.json)
+/// 4. WA_USE_CLIPBOARD env var
+/// 5. Default to false
 pub fn resolve_use_clipboard(arg: Option<bool>) -> bool {
     // Priority 1: Command-line argument
     if let Some(use_clipboard) = arg {
@@ -118,10 +123,27 @@ pub fn resolve_use_clipboard(arg: Option<bool>) -> bool {
         return state.use_clipboard;
     }
     
-    // Priority 3: Environment variable
-    // Priority 4: Default
+    // Priority 3: System config file
+    if let Some(config) = crate::config::read_config() {
+        return config.use_clipboard;
+    }
+    
+    // Priority 4: Environment variable
+    // Priority 5: Default
     std::env::var("WA_USE_CLIPBOARD")
         .unwrap_or_else(|_| "false".to_string())
         .to_lowercase() == "true"
 }
 
+    // Priority 2: Tray state
+    if let Some(state) = read_tray_state() {
+        return state.use_clipboard;
+    }
+
+    // Priority 3: Environment variable
+    // Priority 4: Default
+    std::env::var("WA_USE_CLIPBOARD")
+        .unwrap_or_else(|_| "false".to_string())
+        .to_lowercase()
+        == "true"
+}

@@ -81,7 +81,15 @@ in {
     # System-wide package installation
     environment.systemPackages = [ whisp-away ];
     
-    # Environment variables
+    # System-wide default config (users can override in ~/.config/whisp-away/config.json)
+    # Note: For NixOS module, we recommend using home-manager for per-user config
+    environment.etc."xdg/whisp-away/config.json".text = builtins.toJSON {
+      default_model = cfg.defaultModel;
+      default_backend = cfg.defaultBackend;
+      use_clipboard = cfg.useClipboard;
+    };
+    
+    # Environment variables (kept for backwards compatibility)
     environment.sessionVariables = {
       WA_WHISPER_MODEL = cfg.defaultModel;
       WA_WHISPER_BACKEND = cfg.defaultBackend;

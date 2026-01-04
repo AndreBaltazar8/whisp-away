@@ -82,7 +82,14 @@ in {
       # Always works in home-manager context
       home.packages = [ whisp-away ];
       
-      # Environment variables
+      # Config file (available immediately after switch)
+      xdg.configFile."whisp-away/config.json".text = builtins.toJSON {
+        default_model = cfg.defaultModel;
+        default_backend = cfg.defaultBackend;
+        use_clipboard = cfg.useClipboard;
+      };
+      
+      # Environment variables (kept for backwards compatibility and non-NixOS usage)
       home.sessionVariables = {
         WA_WHISPER_MODEL = cfg.defaultModel;
         WA_WHISPER_BACKEND = cfg.defaultBackend;

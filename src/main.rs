@@ -8,6 +8,7 @@ mod typing;
 mod socket;
 mod whisper_cpp;
 mod faster_whisper;
+mod config;
 
 #[derive(Parser)]
 #[command(name = "whisp-away")]
@@ -94,17 +95,29 @@ enum Commands {
 }
 
 /// Resolves the backend to use, handling TrayDefined case
+/// Priority:
+/// 1. Tray state file
+/// 2. System config file (~/.config/whisp-away/config.json)
+/// 3. WA_WHISPER_BACKEND env var
+/// 4. Default to "faster-whisper"
 fn resolve_backend(backend: &Backend) -> String {
     match backend {
         Backend::WhisperCpp => "whisper-cpp".to_string(),
         Backend::FasterWhisper => "faster-whisper".to_string(),
         Backend::TrayDefined => {
-            // Check tray state first, then env var, then default
+            // Priority 1: Tray state
             if let Some(state) = helpers::read_tray_state() {
-                state.backend
-            } else {
-                std::env::var("WA_WHISPER_BACKEND").unwrap_or_else(|_| "faster-whisper".to_string())
+                return state.backend;
             }
+            
+            // Priority 2: System config file
+            if let Some(config) = config::read_config() {
+                return config.default_backend;
+            }
+            
+            // Priority 3: Environment variable
+            // Priority 4: Default
+            std::env::var("WA_WHISPER_BACKEND").unwrap_or_else(|_| "faster-whisper".to_string())
         }
     }
 }
