@@ -37,6 +37,7 @@
       
       whisp-away-cuda = pkgs.callPackage ./build.nix {
         inherit craneLib;
+        inherit (pkgs) addDriverRunpath;
         useCrane = true;
         accelerationType = "cuda";
       };

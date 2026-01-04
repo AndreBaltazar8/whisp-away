@@ -1,4 +1,4 @@
-{ lib, rustPlatform ? null, pkg-config, dbus, whisper-cpp ? null, makeWrapper, python3, fetchFromGitHub, cudaPackages, cmake, libclang, git, stdenv, pulseaudio, wtype, wl-clipboard, libnotify, vulkan-headers, vulkan-loader, shaderc, openblas, patchelf, openvino, tbb, callPackage, curl, accelerationType ? "vulkan"
+{ lib, rustPlatform ? null, pkg-config, dbus, whisper-cpp ? null, makeWrapper, python3, fetchFromGitHub, cudaPackages, cmake, libclang, git, stdenv, pulseaudio, wtype, wl-clipboard, libnotify, vulkan-headers, vulkan-loader, shaderc, openblas, patchelf, openvino, tbb, callPackage, curl, accelerationType ? "vulkan", addDriverRunpath ? null
 # Build system selection
 , useCrane ? false
 , craneLib ? null
@@ -67,6 +67,7 @@ let
       shaderc  # Provides glslc for Vulkan shader compilation
     ] ++ lib.optionals (accelerationType == "cuda") [
       cudaPackages.cudatoolkit
+      addDriverRunpath
     ];
     
     buildInputs = [
@@ -130,7 +131,9 @@ let
   
     # Add library paths for linking
     NIX_LDFLAGS = lib.optionalString (accelerationType == "openvino") 
-      "-L${openvino}/runtime/lib/intel64 -L${tbb}/lib -lopenvino -lopenvino_c -ltbb";
+      "-L${openvino}/runtime/lib/intel64 -L${tbb}/lib -lopenvino -lopenvino_c -ltbb"
+      + lib.optionalString (accelerationType == "cuda")
+      " -L${cudaPackages.cuda_cudart}/lib/stubs -L${cudaPackages.cudatoolkit}/lib/stubs";
     
     # Patch the build process
     postPatch = ''
@@ -218,6 +221,11 @@ let
         ]
       )}${lib.optionalString (accelerationType == "openvino") ":${openvino}/runtime/lib/intel64"}:/run/opengl-driver/lib:$(patchelf --print-rpath $out/bin/whisp-away)" \
         $out/bin/whisp-away
+      
+      # Add driver runpath for CUDA (resolves libcuda.so at runtime from NVIDIA driver)
+      ${lib.optionalString (accelerationType == "cuda" && addDriverRunpath != null) ''
+        addDriverRunpath $out/bin/whisp-away
+      ''}
       
       # Wrap the Rust binary with necessary paths and whisper-cpp CLI
       # Detect which whisper backend is available

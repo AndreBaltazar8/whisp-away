@@ -10,7 +10,7 @@ let
   
   whisp-away = pkgs.callPackage ../../build.nix {
     inherit (cfg) accelerationType;
-    inherit (pkgs) rustPlatform;
+    inherit (pkgs) rustPlatform addDriverRunpath;
     inherit craneLib;
     useCrane = effectiveUseCrane;
   };
