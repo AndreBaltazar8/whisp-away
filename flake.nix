@@ -89,9 +89,15 @@
           echo "Found whisper-rs rev: $REV"
           echo "Fetching hash..."
 
-          HASH=$(${pkgs.nix-prefetch-git}/bin/nix-prefetch-git \
-            https://codeberg.org/madjinn/whisper-rs.git \
-            --rev "$REV" --quiet 2>/dev/null | ${pkgs.jq}/bin/jq -r .hash)
+          # Use fetchgit to get the correct hash (nix-prefetch-git gives wrong hash)
+          HASH=$(${pkgs.nix}/bin/nix-build --no-out-link -E \
+            'with import <nixpkgs> {}; fetchgit { url = "https://codeberg.org/madjinn/whisper-rs.git"; rev = "'"$REV"'"; hash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; }' \
+            2>&1 | ${pkgs.gnugrep}/bin/grep -oP 'got:\s+\K.+' || true)
+          
+          if [ -z "$HASH" ]; then
+            echo "Error: Could not fetch hash using fetchgit"
+            exit 1
+          fi
 
           echo "Hash: $HASH"
 
