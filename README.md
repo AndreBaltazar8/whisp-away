@@ -19,17 +19,21 @@ Voice dictation for Linux using OpenAI's Whisper models. Type with your voice us
 {
   # With NixOS
   imports = [ whisp-away.nixosModules.nixos ];
-  # With home-manager
+  # With home-manager (recommended)
   imports = [ whisp-away.nixosModules.home-manager ];
   
   services.whisp-away = {
     enable = true;
-    accelerationType = "vulkan";  # or "cuda", "openvino", "cpu" - requires rebuild
-    useClipboard = false;         # true = copy to clipboard, false = type at cursor
-    useCrane = false;             # Enable if you want faster rebuilds when developing
+    defaultModel = "base.en";         # Default model (changes apply immediately)
+    defaultBackend = "whisper-cpp";   # Backend selection (changes apply immediately)
+    accelerationType = "vulkan";      # or "cuda", "openvino", "cpu" - requires rebuild
+    useClipboard = false;             # Output mode (changes apply immediately)
+    useCrane = false;                 # Enable if you want faster rebuilds when developing
   };
 }
 ```
+
+**Note**: Most configuration changes (`defaultModel`, `defaultBackend`, `useClipboard`) take effect immediately after rebuild. Only `accelerationType` requires a full rebuild since it affects how the binary is compiled.
 
 ## Usage
 
@@ -119,14 +123,34 @@ cargo build --release --features vulkan
 ```nix
 services.whisp-away = {
   enable = true;
-  defaultModel = "small.en";        # sets WA_WHISPER_MODEL
-  defaultBackend = "whisper-cpp";   # sets WA_WHISPER_BACKEND
-  accelerationType = "vulkan";      # GPU acceleration type
-  useClipboard = false;             # sets WA_USE_CLIPBOARD (false = type, true = clipboard)
+  defaultModel = "small.en";        # Default Whisper model
+  defaultBackend = "whisper-cpp";   # Default backend (whisper-cpp or faster-whisper)
+  accelerationType = "vulkan";      # GPU acceleration type (requires rebuild)
+  useClipboard = false;             # Output mode (false = type, true = clipboard)
 }
 ```
 
-### Environment Variables
+**Configuration takes effect immediately** after `nixos-rebuild` or `home-manager switch` - no logout required! The module writes to `~/.config/whisp-away/config.json` which is read by all whisp-away processes.
+
+### Configuration Priority
+
+Settings are resolved in this priority order (highest to lowest):
+
+1. **Command-line arguments** (e.g., `--model medium.en`, `--clipboard true`)
+2. **Tray state file** (`~/.config/whisp-away/state.json` - runtime changes via tray menu)
+3. **Config file** (`~/.config/whisp-away/config.json` - managed by NixOS/home-manager)
+4. **Environment variables** (`WA_WHISPER_MODEL`, `WA_WHISPER_BACKEND`, `WA_USE_CLIPBOARD`)
+5. **Default values** (base.en, faster-whisper, clipboard=false)
+
+This means:
+- Command-line flags always win
+- Tray menu changes override NixOS config temporarily
+- NixOS module config provides system defaults
+- Environment variables work for backwards compatibility
+
+### Environment Variables (Legacy)
+
+For manual configuration or non-NixOS systems:
 
 - `WA_WHISPER_MODEL`: Default model (e.g., "small.en")
 - `WA_WHISPER_BACKEND`: Default backend ("whisper-cpp" or "faster-whisper")
