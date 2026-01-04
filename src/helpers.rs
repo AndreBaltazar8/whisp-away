@@ -117,31 +117,19 @@ pub fn resolve_use_clipboard(arg: Option<bool>) -> bool {
     if let Some(use_clipboard) = arg {
         return use_clipboard;
     }
-    
+
     // Priority 2: Tray state
     if let Some(state) = read_tray_state() {
         return state.use_clipboard;
     }
-    
+
     // Priority 3: System config file
     if let Some(config) = crate::config::read_config() {
         return config.use_clipboard;
     }
-    
+
     // Priority 4: Environment variable
     // Priority 5: Default
-    std::env::var("WA_USE_CLIPBOARD")
-        .unwrap_or_else(|_| "false".to_string())
-        .to_lowercase() == "true"
-}
-
-    // Priority 2: Tray state
-    if let Some(state) = read_tray_state() {
-        return state.use_clipboard;
-    }
-
-    // Priority 3: Environment variable
-    // Priority 4: Default
     std::env::var("WA_USE_CLIPBOARD")
         .unwrap_or_else(|_| "false".to_string())
         .to_lowercase()
