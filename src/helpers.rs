@@ -1,13 +1,10 @@
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
-use std::process::Command;
 
 pub fn is_process_running(pid: u32) -> bool {
-    Command::new("kill")
-        .args(&["-0", &pid.to_string()])
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
+    // Use libc::kill directly instead of spawning external kill binary
+    // This works regardless of PATH (important for NixOS)
+    unsafe { libc::kill(pid as i32, 0) == 0 }
 }
 
 pub fn wav_to_samples(wav_data: &[u8]) -> Result<Vec<f32>> {

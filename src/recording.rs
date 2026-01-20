@@ -31,20 +31,16 @@ pub fn stop_recording(audio_file_override: Option<&str>) -> Result<Option<String
                 return Ok(None);
             }
             
-            // Try graceful shutdown first
+            // Try graceful shutdown first (use libc::kill directly for NixOS compatibility)
             std::thread::sleep(std::time::Duration::from_millis(100));
-            
-            let _ = Command::new("kill")
-                .args(&["-INT", &pid.to_string()])
-                .status();
-            
+
+            unsafe { libc::kill(pid as i32, libc::SIGINT) };
+
             std::thread::sleep(std::time::Duration::from_millis(50));
-            
+
             // Force kill if still running
             if is_process_running(pid) {
-                let _ = Command::new("kill")
-                    .args(&["-TERM", &pid.to_string()])
-                    .status();
+                unsafe { libc::kill(pid as i32, libc::SIGTERM) };
             }
             
             std::thread::sleep(std::time::Duration::from_millis(50));
@@ -86,13 +82,11 @@ pub fn start_recording(backend_name: &str) -> Result<()> {
     let pidfile = "/tmp/whisp-away-recording.pid";
     let uid = unsafe { libc::getuid() };
     
-    // Kill any existing recording process
+    // Kill any existing recording process (use libc::kill directly for NixOS compatibility)
     if let Ok(pid_str) = fs::read_to_string(&pidfile) {
         if let Ok(pid) = pid_str.trim().parse::<u32>() {
             if is_process_running(pid) {
-                let _ = Command::new("kill")
-                    .args(&["-TERM", &pid.to_string()])
-                    .status();
+                unsafe { libc::kill(pid as i32, libc::SIGTERM) };
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
         }
