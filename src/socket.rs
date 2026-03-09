@@ -24,7 +24,10 @@ pub fn send_transcription_request(
                 .context("Failed to read response from daemon")?;
             
             // Check if transcription was successful
-            let success = response.contains(r#""success":true"#) || response.contains(r#""success": true"#);
+            let success = serde_json::from_str::<serde_json::Value>(&response)
+                .ok()
+                .and_then(|v| v.get("success")?.as_bool())
+                .unwrap_or(false);
             
             if success {
                 // Parse the transcribed text from JSON response
@@ -64,21 +67,6 @@ pub fn send_transcription_request(
 
 /// Extract the "text" field value from a JSON response string
 fn extract_text_from_response(response: &str) -> Option<String> {
-    if let Some(text_start_idx) = response.find(r#""text":"#) {
-        let after_text = &response[text_start_idx + 7..];
-        let content_start = after_text.trim_start();
-        
-        if content_start.starts_with('"') {
-            let text_content = &content_start[1..];
-            if let Some(end_quote) = text_content.find('"') {
-                Some(text_content[..end_quote].to_string())
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    } else {
-        None
-    }
+    let parsed: serde_json::Value = serde_json::from_str(response).ok()?;
+    parsed.get("text")?.as_str().map(|s| s.to_string())
 }
