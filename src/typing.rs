@@ -39,11 +39,19 @@ pub fn output_text(text: &str, use_clipboard: bool, backend_name: &str) -> Resul
 
 /// Type text at cursor using wtype (Wayland) or xdotool (X11)
 fn type_at_cursor(text: &str, backend_name: &str) -> Result<()> {
-    // Try wtype first (Wayland)
+    // Try wtype first (Wayland) - use stdin mode to avoid issues with
+    // special characters (quotes, dashes, etc.) in transcribed text
     let wtype_result = Command::new("wtype")
-        .arg(text)
+        .arg("-")
+        .stdin(Stdio::piped())
         .spawn()
-        .and_then(|mut child| child.wait());
+        .and_then(|mut child| {
+            if let Some(mut stdin) = child.stdin.take() {
+                stdin.write_all(text.as_bytes())?;
+                drop(stdin);
+            }
+            child.wait()
+        });
     
     if let Ok(status) = wtype_result {
         if status.success() {
