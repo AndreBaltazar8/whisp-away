@@ -13,6 +13,11 @@ pub struct Config {
 
     #[serde(default)]
     pub use_clipboard: bool,
+
+    /// Typing method: "auto" (default), "paste" (clipboard + ydotool Ctrl+V),
+    /// "wtype" (virtual keystrokes), or "xdotool" (X11)
+    #[serde(default)]
+    pub typing_method: Option<String>,
 }
 
 fn default_model() -> String {
@@ -29,6 +34,7 @@ impl Default for Config {
             default_model: default_model(),
             default_backend: default_backend(),
             use_clipboard: false,
+            typing_method: None,
         }
     }
 }

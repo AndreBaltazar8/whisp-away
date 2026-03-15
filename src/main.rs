@@ -69,6 +69,10 @@ enum Commands {
         /// Output to clipboard instead of typing at cursor (overrides tray/env setting)
         #[arg(long)]
         clipboard: Option<bool>,
+
+        /// Typing method: auto, paste, wtype, xdotool
+        #[arg(long)]
+        typing_method: Option<String>,
     },
     
     /// Run as a daemon server with model preloaded
@@ -138,12 +142,17 @@ fn main() -> Result<()> {
             }
         }
         
-        Commands::Stop { backend, bindings, model, audio_file, socket_path, whisper_path, clipboard } => {
+        Commands::Stop { backend, bindings, model, audio_file, socket_path, whisper_path, clipboard, typing_method } => {
             // Resolve backend (handles TrayDefined case)
             let resolved_backend = resolve_backend(&backend);
-            
+
             let socket_path = socket_path.unwrap_or_else(|| "/tmp/whisp-away-daemon.sock".to_string());
             let use_clipboard = helpers::resolve_use_clipboard(clipboard);
+
+            // Set typing method if provided via CLI (overrides config)
+            if let Some(ref method) = typing_method {
+                std::env::set_var("WHISP_AWAY_TYPING_METHOD", method);
+            }
             
             match resolved_backend.as_str() {
                 "whisper-cpp" => {
