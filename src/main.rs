@@ -70,7 +70,7 @@ enum Commands {
         #[arg(long)]
         clipboard: Option<bool>,
 
-        /// Typing method: auto, paste, wtype, xdotool
+        /// Typing method: auto, paste, ydotool, wtype, xdotool
         #[arg(long)]
         typing_method: Option<String>,
     },

@@ -7,11 +7,13 @@ use std::io::Write;
 pub enum TypingMethod {
     /// Clipboard paste via ydotool (Ctrl+V) — instant, works in Chrome
     Paste,
+    /// Virtual keystrokes via ydotool type (Wayland/X11)
+    Ydotool,
     /// Virtual keystrokes via wtype (Wayland)
     Wtype,
     /// Virtual keystrokes via xdotool (X11)
     Xdotool,
-    /// Try paste first, fall back to wtype, then xdotool
+    /// Try paste first, fall back to ydotool, wtype, then xdotool
     Auto,
 }
 
@@ -19,6 +21,7 @@ impl TypingMethod {
     pub fn from_str(s: &str) -> Self {
         match s {
             "paste" => Self::Paste,
+            "ydotool" => Self::Ydotool,
             "wtype" => Self::Wtype,
             "xdotool" => Self::Xdotool,
             _ => Self::Auto,
@@ -80,10 +83,12 @@ fn type_at_cursor(text: &str, backend_name: &str) -> Result<()> {
 
     let success = match method {
         TypingMethod::Paste => type_via_paste(text),
+        TypingMethod::Ydotool => type_via_ydotool(text),
         TypingMethod::Wtype => type_via_wtype(text),
         TypingMethod::Xdotool => type_via_xdotool(text),
         TypingMethod::Auto => {
             type_via_paste(text)
+                .or_else(|_| type_via_ydotool(text))
                 .or_else(|_| type_via_wtype(text))
                 .or_else(|_| type_via_xdotool(text))
         }
@@ -156,6 +161,19 @@ fn type_via_paste(text: &str) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Type via ydotool type (Wayland/X11) with no key delay
+fn type_via_ydotool(text: &str) -> Result<()> {
+    let status = Command::new("ydotool")
+        .args(&["type", "--key-delay", "0", "--", text])
+        .status()
+        .context("Failed to run ydotool")?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(anyhow::anyhow!("ydotool type failed"))
+    }
 }
 
 /// Type via wtype (Wayland) using stdin
